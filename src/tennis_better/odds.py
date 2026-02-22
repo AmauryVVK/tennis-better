@@ -66,7 +66,7 @@ def get_odds(sport: str, event_id: str, regions: str) -> dict:
     Returns:
         A dict describing the event and the h2h odds from all bookmakers of regions
     """
-    base_url = f"https://api.the-odds-api.com/v4/sports/{sport}/events/{event_id}/odds"
+    base_url = f"https://api.the-odds-api.com/v4/sports/{sport}/events/{event_id}/odds/"
     params = {
         "apiKey": api_key,
         "regions": regions,

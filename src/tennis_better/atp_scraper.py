@@ -1,10 +1,18 @@
+import typing as T
+
 from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
 
 from tennis_better import logger
 
 
-def get_player_urls():
+def get_player_urls() -> T.List[str]:
+    """
+    Scrape the 'atptour.com' website to extract the urls of all players of the top 300
+
+    Returns:
+        A list of str, containing the url of all tennis players
+    """
 
     # Url for top 300 players
     url = "https://www.atptour.com/en/rankings/singles?rankRange=0-300"
@@ -20,21 +28,22 @@ def get_player_urls():
         try:
             logger.info(f"Waiting for player links to render from {url} ...")
 
-            # Search for anchor <a> with attribute href "/en/players/"
-            # Model url: https://www.atptour.com/en/players/carlos-alcaraz/a0e2/overview
-            page.wait_for_selector('a[href*="/en/players/"]', timeout=15000)
-            hrefs = page.eval_on_selector_all(
-                'a[href*="/en/players/"]', "elements => elements.map(e => e.href)"
-            )
+            # Urls are inside <div id="content" class="u tennis v header-scores">
+            container = page.locator("[class='atp_rankings-all']")
+            container.wait_for(state="visible", timeout=20000)
 
-            # Clean and deduplicate (only keep 'overview' pages)
-            player_urls = {link for link in hrefs if "/overview" in link}
+            # Find urls inside the container
+            # Search for anchor <a> with attributes href: "/en/players/" and "overview"
+            # Model url: https://www.atptour.com/en/players/carlos-alcaraz/a0e2/overview
+            player_urls = container.locator(
+                "a[href*='/en/players/'][href*='overview']"
+            ).evaluate_all("elements => elements.map(e => e.href)")
             logger.info(f"Found {len(player_urls)} player links")
 
         except Exception as error:
-            # If it fails, take a screenshot to look at the error page
+            # Take a screenshot to look at the error page
             page.screenshot(path="error_state.png")
-            logger.error("Failed to find player links. Check 'error_state.png'.")
+            logger.error("Failed to extract player links. Check 'error_state.png'.")
             raise error
 
         browser.close()
