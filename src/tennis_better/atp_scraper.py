@@ -1,3 +1,4 @@
+import re
 import typing as T
 
 from playwright.sync_api import sync_playwright
@@ -6,12 +7,18 @@ from playwright_stealth import Stealth
 from tennis_better import logger
 
 
-def get_player_urls() -> T.List[str]:
+def _is_valid_name(text: str) -> bool:
+    """Check whether a string is a valid name, i.e. containing only letters, white spaces or dashes."""
+    pattern = r"^[a-zA-Z\s\-]+$"
+    return bool(re.match(pattern, text))
+
+
+def get_player_urls() -> T.List[dict]:
     """
     Scrape the 'atptour.com' website to extract the urls of all players of the top 300
 
     Returns:
-        A list of str, containing the url of all tennis players
+        A list of dict, containing the name and url of all tennis players
     """
 
     # Url for top 300 players
@@ -35,10 +42,14 @@ def get_player_urls() -> T.List[str]:
             # Find urls inside the container
             # Search for anchor <a> with attributes href: "/en/players/" and "overview"
             # Model url: https://www.atptour.com/en/players/carlos-alcaraz/a0e2/overview
-            player_urls = container.locator(
+            data = container.locator(
                 "a[href*='/en/players/'][href*='overview']"
-            ).evaluate_all("elements => elements.map(e => e.href)")
-            logger.info(f"Found {len(player_urls)} player links")
+            ).evaluate_all("""
+                           elements => elements.map(e => ({
+                               name: e.innerText.trim(),
+                               url: e.href
+                           }))
+                           """)
 
         except Exception as error:
             # Take a screenshot to look at the error page
@@ -48,4 +59,15 @@ def get_player_urls() -> T.List[str]:
 
         browser.close()
 
-    return player_urls
+    # Drop duplicates
+    seen_names = set()
+    player_links = []
+
+    for d in data:
+        if d["name"] not in seen_names and _is_valid_name(d["name"]):
+            player_links.append(d)
+            seen_names.add(d["name"])
+
+    logger.info(f"Found {len(player_links)} player links")
+
+    return player_links
