@@ -1,9 +1,15 @@
 import logging
+import os
 from pathlib import Path
 
 import colorlog
+from dotenv import load_dotenv
 
-__all__ = ["logger", "root_folder"]
+__all__ = ["logger", "root_folder", "dict_db_paths"]
+
+
+load_dotenv()
+env = os.getenv("ENV")
 
 
 def _setup_logger():
@@ -37,5 +43,18 @@ def _get_root():
     return Path(__file__).parent.parent.parent.resolve().as_posix()
 
 
+def _get_dict_databases():
+    """Return a dict with database connection paths"""
+    if env == "LOCAL":
+        db_name = os.getenv("DATABASE_PLAYER_URLS")
+        return {"player_urls": Path(root_folder) / db_name}
+
+    if env == "REMOTE":
+        db_name = os.getenv("MOTHERDUCK_DATABASE")
+        token = os.getenv("MOTHERDUCK_TOKEN")
+        return {"player_urls": f"{db_name}?motherduck_token={token}"}
+
+
 logger = _setup_logger()
 root_folder = _get_root()
+dict_db_paths = _get_dict_databases()
